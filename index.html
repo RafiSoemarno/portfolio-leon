@@ -46,7 +46,7 @@
 
         const loader = new FBXLoader();
         let ak_model;
-        loader.load('AK-74M.fbx', (object) => {
+        loader.load('/asset/AK-74M.fbx', (object) => {
             ak_model = object;
             ak_model.scale.set(0.02, 0.02, 0.02); // Adjust scale if needed
             ak_model.position.set(0, 1.5, 3); // Position it where the sphere was
