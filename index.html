@@ -3,8 +3,42 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>portfolio ni leon</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <title>portfolio ni leon — 3D model showcase</title>
+    <meta name="description" content="Interactive 3D model viewer. Rotatable, zoomable WebGL previews of models built by Leon." />
+
+    <link rel="icon" type="image/png" href="/favicon.png" sizes="64x64" />
+
+    <!-- Social unfurl. og:url / og:image use a placeholder domain until the
+         Cloudflare Pages custom domain is set (LEON-20/LEON-21); swap to the
+         production origin then. Real per-model OG images land in Phase 3
+         (LEON-18). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="portfolio ni leon" />
+    <meta property="og:title" content="portfolio ni leon — 3D model showcase" />
+    <meta property="og:description" content="Interactive 3D model viewer. Rotatable, zoomable WebGL previews of models built by Leon." />
+    <meta property="og:url" content="https://portfolio-ni-leon.example.com/" />
+    <meta property="og:image" content="https://portfolio-ni-leon.example.com/og-placeholder.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="portfolio ni leon — placeholder social card" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="portfolio ni leon — 3D model showcase" />
+    <meta name="twitter:description" content="Interactive 3D model viewer. Rotatable, zoomable WebGL previews of models built by Leon." />
+    <meta name="twitter:image" content="https://portfolio-ni-leon.example.com/og-placeholder.png" />
+    <meta name="twitter:image:alt" content="portfolio ni leon — placeholder social card" />
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
 </head>
 
 <body class="bg-neutral-900">
