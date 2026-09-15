@@ -1,1 +1,17 @@
 @import "tailwindcss";
+
+/* Indeterminate sweep for the loading bar when Content-Length is unavailable
+   (LEON-11). Registered as a theme animation so `animate-status-sweep` is a
+   normal Tailwind utility. */
+@theme {
+  --animate-status-sweep: status-sweep 1.4s ease-in-out infinite;
+
+  @keyframes status-sweep {
+    0% {
+      transform: translateX(-120%);
+    }
+    100% {
+      transform: translateX(320%);
+    }
+  }
+}

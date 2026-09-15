@@ -42,7 +42,11 @@
 </head>
 
 <body class="bg-neutral-900">
-    <div id="app" class="min-h-screen"></div>
+    <!-- `relative` + the status layer let the viewer overlay loading/progress and
+         fallback states on top of the canvas (LEON-11). -->
+    <div id="app" class="relative min-h-screen">
+        <div id="viewer-status" class="absolute inset-0 z-10"></div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
 </body>
 
