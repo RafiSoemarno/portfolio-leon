@@ -10,24 +10,24 @@ import { setupLighting } from './viewer/lighting';
  */
 
 const MODEL_URL = '/AK-74M.fbx';
+// Position it where the sphere was. The orbit target tracks it so rotation and
+// dolly stay centred on the model; the registry (LEON-12) supplies these per model.
+const MODEL_POSITION: [number, number, number] = [0, 1.5, 3];
 
 const container = document.querySelector<HTMLElement>('#app') ?? document.body;
 
 const viewer = createViewer(container);
+viewer.controls.target.set(...MODEL_POSITION);
 const lights = setupLighting(viewer.scene);
 
 const model = loadModel(viewer.scene, {
   url: MODEL_URL,
   scale: 0.02, // Adjust scale if needed
-  position: [0, 1.5, 3], // Position it where the sphere was
+  position: MODEL_POSITION,
   rotation: [-Math.PI / 10, -Math.PI / 2, 0],
   onError: (error) => {
     console.error('Error loading FBX:', error);
   }
-});
-
-model.ready.then((loaded) => {
-  if (loaded) viewer.setRotationTarget(loaded.root);
 });
 
 // LEON-11 adds real mount/unmount lifecycle hooks; until then teardown runs

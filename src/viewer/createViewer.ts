@@ -1,12 +1,13 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 /**
  * Owns the render loop and everything attached to the GL context: scene,
- * camera, renderer, resize handling and the canvas itself.
+ * camera, renderer, input controls, resize handling and the canvas itself.
  *
- * Input handling here (FOV wheel-zoom, pointer-drag rotation) is the prototype
- * behaviour, kept verbatim for a pure refactor. LEON-9 replaces it with
- * `OrbitControls`.
+ * Input is `OrbitControls`: touch/pen + mouse orbit, damping, pinch dolly and
+ * wheel dolly (never FOV zoom — that distorts perspective with no dolly to
+ * compensate).
  */
 
 export interface Viewer {
@@ -14,27 +15,27 @@ export interface Viewer {
   readonly camera: THREE.PerspectiveCamera;
   readonly renderer: THREE.WebGLRenderer;
   /**
-   * Object that the drag handler rotates. Pass the loaded model's root once it
-   * is ready; pass `null` to detach.
+   * Orbit controls bound to the canvas. Pages set `controls.target` to the
+   * loaded model's position (and, later, per-model camera presets).
    */
-  setRotationTarget(target: THREE.Object3D | null): void;
+  readonly controls: OrbitControls;
   /** Stops the loop, releases listeners and the GL context. Idempotent. */
   dispose(): void;
 }
 
-const MIN_FOV = 20;
-const MAX_FOV = 90;
-const ZOOM_SPEED = 1;
 const MAX_DPR = 2;
-const ROTATION_SPEED = 0.005;
 const GROUND_SIZE = 1000;
+
+/** Closest/farthest the camera may dolly to `controls.target`. */
+const MIN_DISTANCE = 0.35;
+const MAX_DISTANCE = 15;
+const DAMPING_FACTOR = 0.08;
 
 export function createViewer(container: HTMLElement = document.body): Viewer {
   const scene = new THREE.Scene();
 
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
   camera.position.set(0, 2, 5);
-  camera.lookAt(0, 1, 0); // Focus on the sphere
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -52,47 +53,20 @@ export function createViewer(container: HTMLElement = document.body): Viewer {
   ground.receiveShadow = true;
   scene.add(ground);
 
-  let rotationTarget: THREE.Object3D | null = null;
-  let isDragging = false;
-  let previousMousePosition = { x: 0, y: 0 };
+  const canvas = renderer.domElement;
 
-  // Scroll to zoom
-  function onWheel(event: WheelEvent): void {
-    event.preventDefault();
-
-    const direction = event.deltaY > 0 ? -1 : 1;
-
-    camera.fov -= direction * ZOOM_SPEED;
-
-    // Clamp FOV to avoid distortion
-    camera.fov = Math.max(MIN_FOV, Math.min(camera.fov, MAX_FOV));
-
-    camera.updateProjectionMatrix(); // Needed to apply FOV changes
-  }
-
-  // Controls for rotating model
-  function onMouseDown(event: MouseEvent): void {
-    isDragging = true;
-    previousMousePosition = { x: event.clientX, y: event.clientY };
-  }
-
-  function onMouseUp(): void {
-    isDragging = false;
-  }
-
-  function onMouseMove(event: MouseEvent): void {
-    if (!isDragging || !rotationTarget) return;
-
-    const deltaMove = {
-      x: event.clientX - previousMousePosition.x,
-      y: event.clientY - previousMousePosition.y
-    };
-
-    rotationTarget.rotation.y += deltaMove.x * ROTATION_SPEED;
-    rotationTarget.rotation.x += deltaMove.y * ROTATION_SPEED;
-
-    previousMousePosition = { x: event.clientX, y: event.clientY };
-  }
+  const controls = new OrbitControls(camera, canvas);
+  // Damping/inertia: `controls.update()` must run every frame (see `animate`).
+  controls.enableDamping = true;
+  controls.dampingFactor = DAMPING_FACTOR;
+  // Pinch/two-finger drag dollies + orbits around the target instead of the
+  // default dolly+pan, which slides the model off-centre on small screens.
+  controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
+  // Clamp the dolly range so the camera cannot enter the model or fly away.
+  controls.minDistance = MIN_DISTANCE;
+  controls.maxDistance = MAX_DISTANCE;
+  // OrbitControls' `connect()` sets `canvas.style.touchAction = 'none'` (no page
+  // scroll over the canvas) and consumes `wheel` with `preventDefault()`.
 
   // Handle resize
   function onResize(): void {
@@ -112,14 +86,10 @@ export function createViewer(container: HTMLElement = document.body): Viewer {
   let frameId = 0;
   function animate(): void {
     frameId = requestAnimationFrame(animate);
+    controls.update();
     renderer.render(scene, camera);
   }
 
-  const canvas = renderer.domElement;
-  canvas.addEventListener('wheel', onWheel, { passive: false });
-  canvas.addEventListener('mousedown', onMouseDown);
-  canvas.addEventListener('mouseup', onMouseUp);
-  canvas.addEventListener('mousemove', onMouseMove);
   window.addEventListener('resize', onResize);
   frameId = requestAnimationFrame(animate);
 
@@ -131,13 +101,9 @@ export function createViewer(container: HTMLElement = document.body): Viewer {
 
     cancelAnimationFrame(frameId);
 
-    canvas.removeEventListener('wheel', onWheel);
-    canvas.removeEventListener('mousedown', onMouseDown);
-    canvas.removeEventListener('mouseup', onMouseUp);
-    canvas.removeEventListener('mousemove', onMouseMove);
+    controls.dispose(); // releases pointer capture + its canvas/document listeners
     window.removeEventListener('resize', onResize);
 
-    rotationTarget = null;
     scene.remove(ground);
     groundGeometry.dispose();
     groundMaterial.dispose();
@@ -151,9 +117,7 @@ export function createViewer(container: HTMLElement = document.body): Viewer {
     scene,
     camera,
     renderer,
-    setRotationTarget(target: THREE.Object3D | null): void {
-      rotationTarget = target;
-    },
+    controls,
     dispose
   };
 }
