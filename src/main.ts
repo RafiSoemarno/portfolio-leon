@@ -18,7 +18,7 @@ const container = document.querySelector<HTMLElement>('#app') ?? document.body;
 
 const viewer = createViewer(container);
 viewer.controls.target.set(...MODEL_POSITION);
-const lights = setupLighting(viewer.scene);
+const lights = setupLighting(viewer.scene, viewer.renderer, { target: MODEL_POSITION });
 
 const model = loadModel(viewer.scene, {
   url: MODEL_URL,

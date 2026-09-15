@@ -42,6 +42,11 @@ export function createViewer(container: HTMLElement = document.body): Viewer {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_DPR));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Optional for softer shadows
+  // Filmic response keeps the lit/unlit range in check; sRGB output is the
+  // correct encoding for the canvas (explicit for clarity).
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   container.appendChild(renderer.domElement);
 
   // Ground Plane — stage geometry belongs to the viewer (scene content), not to
