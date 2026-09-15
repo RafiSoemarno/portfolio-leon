@@ -1,145 +1,41 @@
 import './styles.css';
-import * as THREE from 'three';
-import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { createViewer } from './viewer/createViewer';
+import { loadModel } from './viewer/loadModel';
+import { setupLighting } from './viewer/lighting';
 
-// Scene
-const scene = new THREE.Scene();
+/**
+ * Page entry: wires the viewer modules together. All scene code lives in
+ * `src/viewer/`; this file only resolves the mount point, picks the model and
+ * forwards teardown.
+ */
 
-// Camera
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 2, 5);
-camera.lookAt(0, 1, 0); // Focus on the sphere
+const MODEL_URL = '/AK-74M.fbx';
 
-// Renderer
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Optional for softer shadows
-document.body.appendChild(renderer.domElement);
+const container = document.querySelector<HTMLElement>('#app') ?? document.body;
 
-// Ground Plane
-const planeGeometry = new THREE.PlaneGeometry(1000, 1000);
-const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
-const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-plane.rotation.x = -Math.PI / 2;
-plane.receiveShadow = true;
-scene.add(plane);
+const viewer = createViewer(container);
+const lights = setupLighting(viewer.scene);
 
-const loader = new FBXLoader();
-let ak_model: THREE.Group | undefined;
-loader.load('/AK-74M.fbx', (object) => {
-    ak_model = object;
-    ak_model.scale.set(0.02, 0.02, 0.02); // Adjust scale if needed
-    ak_model.position.set(0, 1.5, 3); // Position it where the sphere was
-    ak_model.rotation.y = -Math.PI / 2;
-    ak_model.rotation.x = -Math.PI / 10;
-    ak_model.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-        }
-    });
-    scene.add(ak_model);
-}, undefined, (error) => {
+const model = loadModel(viewer.scene, {
+  url: MODEL_URL,
+  scale: 0.02, // Adjust scale if needed
+  position: [0, 1.5, 3], // Position it where the sphere was
+  rotation: [-Math.PI / 10, -Math.PI / 2, 0],
+  onError: (error) => {
     console.error('Error loading FBX:', error);
+  }
 });
 
-// Scroll to zoom
-renderer.domElement.addEventListener('wheel', (event) => {
-    event.preventDefault();
-
-    const zoomSpeed = 1;
-    const direction = event.deltaY > 0 ? -1 : 1;
-
-    camera.fov -= direction * zoomSpeed;
-
-    // Clamp FOV to avoid distortion
-    camera.fov = Math.max(20, Math.min(camera.fov, 90));
-
-    camera.updateProjectionMatrix(); // Needed to apply FOV changes
+model.ready.then((loaded) => {
+  if (loaded) viewer.setRotationTarget(loaded.root);
 });
 
-
-// Floating Sphere
-const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
-const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0xff6347 }); // Stage red?
-const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-sphere.position.y = 1;
-sphere.castShadow = true;
-// scene.add(sphere);
-
-// Spotlight
-const spotlight = new THREE.SpotLight(0xffffff, 100);
-spotlight.position.set(2, 5, 5);
-spotlight.angle = Math.PI / 4; // try values between Math.PI / 6 and Math.PI / 3
-spotlight.penumbra = 0.5; // adds a soft edge to the spotlight
-spotlight.castShadow = true;
-spotlight.shadow.mapSize.width = 2048;
-spotlight.shadow.mapSize.height = 2048;
-spotlight.shadow.camera.near = 1;
-spotlight.shadow.camera.far = 20;
-spotlight.target.position.set(0, 1, 0); // aim at the sphere
-scene.add(spotlight.target);
-scene.add(spotlight);
-
-// Ambient Light for soft illumination
-const ambient = new THREE.AmbientLight(0x404040);
-scene.add(ambient);
-
-// Controls for rotating model
-let isDragging = false;
-let previousMousePosition = { x: 0, y: 0 };
-
-renderer.domElement.addEventListener('mousedown', (event) => {
-    isDragging = true;
-    previousMousePosition = {
-        x: event.clientX,
-        y: event.clientY
-    };
-});
-
-renderer.domElement.addEventListener('mouseup', () => {
-    isDragging = false;
-});
-
-renderer.domElement.addEventListener('mousemove', (event) => {
-    if (!isDragging || !ak_model) return;
-
-    const deltaMove = {
-        x: event.clientX - previousMousePosition.x,
-        y: event.clientY - previousMousePosition.y
-    };
-
-    const rotationSpeed = 0.005;
-
-    ak_model.rotation.y += deltaMove.x * rotationSpeed;
-    ak_model.rotation.x += deltaMove.y * rotationSpeed;
-
-    previousMousePosition = {
-        x: event.clientX,
-        y: event.clientY
-    };
-});
-
-
-// Handle resize
-window.addEventListener('resize', () => {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-
-    // Update camera
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-
-    // Update renderer
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-});
-
-// Animation loop
-function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
+// LEON-11 adds real mount/unmount lifecycle hooks; until then teardown runs
+// when the page goes away so no GL context is left behind.
+function teardown(): void {
+  model.dispose();
+  lights.dispose();
+  viewer.dispose();
 }
-animate();
+
+window.addEventListener('beforeunload', teardown);
